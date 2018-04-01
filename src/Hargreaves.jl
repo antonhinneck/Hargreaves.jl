@@ -11,10 +11,6 @@ function wireplot(connections::Array{Int64,2}, res_x = 4096, res_y = 4096, plot_
     data = arcs(connections)
 
     center = [res_x/2,res_y/2]
-    border_left = center[1]
-    border_right = 0.0
-    border_top = 0.0
-    border_bottom = 0.0
 
     c = CairoSVGSurface("wireplot.svg", res_x, res_y)
     cr = CairoContext(c)
@@ -69,6 +65,13 @@ function wireplot(connections::Array{Int64,2}, res_x = 4096, res_y = 4096, plot_
     ## PLOT NODES' LABELS
     #--------------------
 
+    label_origin_x = Array{Float64,1}(length(node_positions[:,1]))
+    label_origin_y = Array{Float64,1}(length(node_positions[:,1]))
+    label_border_left = Array{Float64,1}(length(node_positions[:,1]))
+    label_border_right = Array{Float64,1}(length(node_positions[:,1]))
+    label_border_top = Array{Float64,1}(length(node_positions[:,1]))
+    label_border_bottom = Array{Float64,1}(length(node_positions[:,1]))
+
     for i in 1:length(data.arc_repo[:,1])
 
         text = string(i)
@@ -78,68 +81,112 @@ function wireplot(connections::Array{Int64,2}, res_x = 4096, res_y = 4096, plot_
 
         if round(Int,node_positions[i,1]) == center[1] && node_positions[i,2] > center[2]
 
-            move_to(cr,node_positions[i,1] - label_extents[3]/2 - 1, node_positions[i,2] + wireplot_node_diameter/2 + label_extents[4] + wireplot_node_label_offset)
+            label_origin_x[i] = node_positions[i,1] - label_extents[3]/2 - 1
+            label_origin_y[i] = node_positions[i,2] + wireplot_node_diameter/2 + label_extents[4] + wireplot_node_label_offset
+            label_border_left[i] = node_positions[i,1] - label_extents[3]/2 - 1
+            label_border_right[i] = label_origin_x[i] + label_extents[3]
+            label_border_top[i] = label_origin_y[i] + label_extents[4]
+            label_border_bottom[i] = label_origin_y[i]
+
+            move_to(cr,label_origin_x[i],label_origin_y[i])
             show_text(cr, string(i))
-            border_bottom = node_positions[i,2] + wireplot_node_diameter/2 + label_extents[4] + wireplot_node_label_offset
 
         elseif round(Int,node_positions[i,1]) == center[1] && node_positions[i,2] < center[2]
 
-            move_to(cr,node_positions[i,1] - label_extents[3]/2 - 1, node_positions[i,2] - wireplot_node_diameter/2 - wireplot_node_label_offset)
+            label_origin_x[i] = node_positions[i,1] - label_extents[3]/2 - 1
+            label_origin_y[i] = node_positions[i,2] - wireplot_node_diameter/2 - wireplot_node_label_offset
+            label_border_left[i] = node_positions[i,1] - label_extents[3]/2 - 1
+            label_border_right[i] = label_origin_x[i] + label_extents[3]
+            label_border_top[i] = label_origin_y[i] + label_extents[4]
+            label_border_bottom[i] = label_origin_y[i]
+
+            move_to(cr,label_origin_x[i],label_origin_y[i])
             show_text(cr, string(i))
-            border_top = node_positions[i,2] - wireplot_node_diameter/2 - wireplot_node_label_offset - text_extents(cr, string(i))[4]
 
         elseif node_positions[i,1] < center[1]
 
-            move_to(cr,node_positions[i,1] - wireplot_node_diameter/2 - label_extents[3] - wireplot_node_label_offset, node_positions[i,2] + label_extents[4]/2 + sin((i*2*pi)/length(node_positions[:,1]))*(wireplot_node_label_offset + wireplot_node_diameter/2 + label_extents[4]/2))
+            label_origin_x[i] = node_positions[i,1] - wireplot_node_diameter/2 - label_extents[3] - wireplot_node_label_offset
+            label_origin_y[i] = node_positions[i,2] + label_extents[4]/2 + sin(((i-1)*2*pi)/length(node_positions[:,1]))*(wireplot_node_label_offset + wireplot_node_diameter/2 + label_extents[4]/2)
+            label_border_left[i] = label_origin_x[i]
+            label_border_right[i] = label_origin_x[i] + label_extents[3]
+            label_border_top[i] = label_origin_y[i] + label_extents[4]
+            label_border_bottom[i] = label_origin_y[i]
+
+            move_to(cr,label_origin_x[i],label_origin_y[i])
             show_text(cr, string(i))
-
-            if (node_positions[i,1] - wireplot_node_diameter/2 - label_extents[3] - wireplot_node_label_offset) < border_left
-
-                border_left = node_positions[i,1] - wireplot_node_diameter/2 - label_extents[3] - wireplot_node_label_offset
-
-            end
 
         elseif node_positions[i,1] > center[1]
 
-            move_to(cr,node_positions[i,1] + wireplot_node_diameter/2 + wireplot_node_diameter/2 + wireplot_node_label_offset, node_positions[i,2] + label_extents[4]/2 + sin((i*2*pi)/length(node_positions[:,1]))*(wireplot_node_label_offset + wireplot_node_diameter/2 + label_extents[4]/2))
+            label_origin_x[i] = node_positions[i,1] + wireplot_node_diameter/2 + wireplot_node_diameter/2 + wireplot_node_label_offset
+            label_origin_y[i] = node_positions[i,2] + label_extents[4]/2 + sin(((i-1)*2*pi)/length(node_positions[:,1]))*(wireplot_node_label_offset + wireplot_node_diameter/2 + label_extents[4]/2)
+            label_border_left[i] = label_origin_x[i]
+            label_border_right[i] = label_origin_x[i] + label_extents[3]
+            label_border_top[i] = label_origin_y[i] + label_extents[4]
+            label_border_bottom[i] = label_origin_y[i]
+
+            move_to(cr,label_origin_x[i],label_origin_y[i])
             show_text(cr, string(i))
-
-            if (node_positions[i,1] + wireplot_node_diameter/2 + wireplot_node_diameter/2 + wireplot_node_label_offset + label_extents[3]) > border_right
-
-                border_right = node_positions[i,1] + wireplot_node_diameter/2 + wireplot_node_diameter/2 + wireplot_node_label_offset + label_extents[3]
-
-            end
 
         end
     end
 
     fill(cr)
 
+    ## COMPUTE PLOT BORDERS
+    #----------------------
+
+    plot_border_right = 0.0
+    plot_border_top = res_y
+    plot_border_left = res_x
+    plot_border_bottom = 0.0
+
+    for i in 1:length(node_positions[:,1])
+
+        if label_border_right[i] > plot_border_right
+
+            plot_border_right = label_border_right[i]
+
+        end
+
+        if label_border_top[i] < plot_border_top
+
+            plot_border_top = label_border_top[i]
+
+        end
+
+        if label_border_left[i] < plot_border_left
+
+            plot_border_left = label_border_left[i]
+
+        end
+
+        if label_border_bottom[i] > plot_border_bottom
+
+            plot_border_bottom = label_border_bottom[i]
+
+        end
+    end
+
     ## PLOT LEGEND
     #-------------
 
         ## HEADING
 
-    println(string(border_top))
-    println(string(border_left))
-    println(string(border_right))
-    println(string(border_bottom))
-
-    heading = "Transported pieces"
+    heading = "Arc frequency"
     heading_extents = text_extents(cr, heading)
 
     set_source_rgb(cr, wireplot_legend_font_color...)
-    move_to(cr, border_right - res_x*0.25, border_bottom)
+    move_to(cr, plot_border_right - res_x*0.25, plot_border_bottom)
     show_text(cr, heading)
-    line_to(cr, border_right, border_bottom)
+    line_to(cr, plot_border_right, plot_border_bottom)
 
     stroke(cr)
 
         ## COLOR DESCRIPTOR
 
-    rectangle(cr, border_right - res_x*0.23 + heading_extents[3],  border_bottom - res_y*0.015,  res_x*0.23 - heading_extents[3], res_y*0.01)
+    rectangle(cr, plot_border_right - res_x*0.23 + heading_extents[3],  plot_border_bottom - res_y*0.015,  res_x*0.23 - heading_extents[3], res_y*0.01)
 
-    gradient = pattern_create_linear(border_right - res_x*0.23 + heading_extents[3], border_bottom,  border_right,  border_bottom)
+    gradient = pattern_create_linear(plot_border_right - res_x*0.23 + heading_extents[3], plot_border_bottom,  plot_border_right,  plot_border_bottom)
 
     pattern_add_color_stop_rgb(gradient, 0, get_color(0, data.max_cons)[3]...)
     pattern_add_color_stop_rgb(gradient, 1, get_color(data.max_cons, data.max_cons)[4]...)
@@ -157,10 +204,10 @@ function wireplot(connections::Array{Int64,2}, res_x = 4096, res_y = 4096, plot_
     text_min = string("[",1,", ...")
     text_max = string(data.max_cons,"]")
 
-    move_to(cr, border_right - res_x*0.23 + heading_extents[3], border_bottom - res_y*0.02)
+    move_to(cr, plot_border_right - res_x*0.23 + heading_extents[3], plot_border_bottom - res_y*0.02)
     show_text(cr, text_min)
 
-    move_to(cr, border_right - text_extents(cr, text_max)[3] - text_extents(cr, text_max)[1], border_bottom - res_y*0.02)
+    move_to(cr, plot_border_right - text_extents(cr, text_max)[3] - text_extents(cr, text_max)[1], plot_border_bottom - res_y*0.02)
     show_text(cr, text_max)
 
     ## EXPORT SVG AND PNG
