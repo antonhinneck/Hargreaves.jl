@@ -54,7 +54,7 @@ function wireplot(g::AbstractGraph, basefn = "wireplot";
         else
             w_pct = (w - actual_minwidth) / actual_widthrange
             normrange = max_width - min_width
-            if w_pct == 0 || normrange == 0
+            if w_pct <= 0 || normrange <= 0
                 return 1
             end
             return floor(Int, normrange * w_pct)
