@@ -3,6 +3,43 @@ module Hargreaves
 
 using Cairo, Colors, LightGraphs
 
+function _get_weight(weight_matrix::Array{T,2} where T <: Number, e)
+#This function only supports upper triangular matrices.
+#(only unidirected graphs)
+
+    weigth_matrix = UpperTriangular(weight_matrix)
+    weight = 0
+
+    if src(e) < dst(e) && src(e) != dst(e)
+
+        weight = weight_matrix[src(e), dst(e)]
+
+    elseif dst(e) < src(e) && src(e) != dst(e)
+
+        weight = weight_matrix[dst(e), src(e)]
+
+    end
+
+    return weight
+
+end
+
+function _get_width(value::Number, actual_min::Number, actual_max::Number, min_width::Number, max_width::Number, static_width_value::Number, static_widths::Bool)
+
+    output_width = static_width_value
+    normrange = max_width - min_width
+    weight_range = actual_max - actual_min
+
+    if !static_widths && !(normrange == 0) && !(weight_range == 0)
+
+        output_width = (value - actual_min) / (weight_range) * normrange
+
+    end
+
+    return output_width
+
+end
+
 function _compute_node_positions(res_x, res_y, node_count, ratio=0.8, switch=1)
     center = [res_x / 2, res_y / 2]
     degrees = 2 * pi
@@ -16,83 +53,123 @@ function _compute_node_positions(res_x, res_y, node_count, ratio=0.8, switch=1)
     return positions
 end
 
-function _get_color(value, max)
+function _get_color(value::Number, actual_min::Number, actual_max::Number, static_colors::Bool, scheme::Symbol = :blossom)
+
     (r_min, r_max) = (200, 112)
     (g_min, g_max) = (255, 30)
     (b_min, b_max) = (225, 112)
-    r_out = (r_min - ((r_min - r_max) / max) * value) / 255
-    g_out = (g_min - ((g_min - g_max) / max) * value) / 255
-    b_out = (b_min - ((b_min - b_max) / max) * value) / 255
+
+    if scheme == :sky
+
+        (r_min, r_max) = (254, 8)
+        (g_min, g_max) = (255, 29)
+        (b_min, b_max) = (217, 88)
+
+    elseif scheme == :blue
+
+        (r_min, r_max) = (230, 0)
+        (g_min, g_max) = (238, 51)
+        (b_min, b_max) = (255, 153)
+
+    elseif scheme == :purple
+
+        (r_min, r_max) = (255, 75)
+        (g_min, g_max) = (246, 0)
+        (b_min, b_max) = (242, 106)
+
+    end
+
+    weight_range = actual_max - actual_min
+
+    r_out = (r_min - ((r_min - r_max) / weight_range) * value) / 255
+    g_out = (g_min - ((g_min - g_max) / weight_range) * value) / 255
+    b_out = (b_min - ((b_min - b_max) / weight_range) * value) / 255
+
+    if static_colors
+    # Override min color used in legend's gradient
+
+        r_min = r_max
+        g_min = g_max
+        b_min = b_max
+
+    end
+
     return [
-        [r_out,g_out,b_out], 
-        [0.0,0.0,0.0], 
+        [r_out,g_out,b_out],
+        [0.0,0.0,0.0],
         [r_min / 255,g_min / 255,b_min / 255],
         [r_max / 255,g_max / 255,b_max / 255]
     ]
+
 end
 
-
-function wireplot(g::AbstractGraph, basefn = "wireplot"; 
+function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     distmx=weights(g),
     res_x = 4096, res_y = 4096,
     plot_to_surface_ratio = 0.9,
-    wireplot_bg_color=[1.0,1.0,1.0],
-    wireplot_jitter=0,
-    wireplot_node_diameter=6.0,
-    wireplot_node_label_offset=16.0,
-    wireplot_node_label_font_color=[0.0,0.0,0.0],
-    wireplot_legend_font_color=[0.0,0.0,0.0],
+    wireplot_bg_color = [1.0,1.0,1.0],
+    wireplot_jitter = 0,
+    wireplot_node_diameter = 8.0,
+    wireplot_node_label_offset = 16.0,
+    wireplot_node_label_font_color = [0.0,0.0,0.0],
+    wireplot_edge_color_scheme =:generic,
+    wireplot_legend_font_color = [0.0,0.0,0.0],
+    wireplot_legend_heading = "Edges' weights",
+    static_widths = false,
+    static_colors = false,
     min_width=1,  # minimum normalized arc width
-    max_width=100 # maximum normalized arc width
+    max_width=8, # maximum normalized arc width
+    static_width_value = 1 # static arc width (if static_widths)
     )
 
-    (actual_minwidth, actual_maxwidth) = extrema(distmx)
-    actual_widthrange = actual_maxwidth - actual_minwidth
-    @inline function _norm_width(w)
-        if actual_widthrange == 0
-            return 1
-        else
-            w_pct = (w - actual_minwidth) / actual_widthrange
-            normrange = max_width - min_width
-            if w_pct == 0 || normrange == 0
-                return 1
-            end
-            return floor(Int, normrange * w_pct)
-        end
-    end
-    
-    max_cons = Δ(g)
+    (actual_min, actual_max) = extrema(distmx) #Get minimal and maximal weights
+
+    ## SETUP SURFACE
+    #-----------------------
+
     center = [res_x / 2,res_y / 2]
 
     c = CairoSVGSurface("$(basefn).svg", res_x, res_y)
     cr = CairoContext(c)
     select_font_face(cr, "Times", 1, 1)
     set_font_size(cr, 56.0)
-    
+
     ## DRAW BACKGROUND
-    #-----------------
+    #-----------------------
 
     set_source_rgb(cr, wireplot_bg_color...)
     rectangle(cr, 0.0, 0.0, res_x, res_y)
     fill(cr)
 
-    ## PLOT NODE CONNECTIONS
+    ## PLOT EDGES
     #-----------------------
 
     plot_border_top = res_y
     plot_border_bottom = 0
     plot_border_left = res_x
     plot_border_right = 0
-    
+
     node_pos = _compute_node_positions(res_x, res_y, nv(g), plot_to_surface_ratio, 1)
+
     degs = degree(g)
 
     for (i, e) in enumerate(edges(g))
         (s, d) = (src(e), dst(e))
         # indeg_d = indegs[d]
         # deg_d = indeg_d + outdeg_d
-        set_source_rgb(cr, _get_color(degs[d], max_cons)[1]...)
-        set_line_width(cr, _norm_width(distmx[s, d]))
+
+        if distmx == weights(g) || static_colors
+
+            set_source_rgb(cr, _get_color(actual_max, actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[1]...)
+
+        else
+
+            set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[1]...)
+
+        end
+
+        set_line_width(cr, _get_width(_get_weight(distmx, e), actual_min, actual_max, min_width, max_width, static_width_value, static_widths))
+
         curve_to(cr, node_pos[s, 1], node_pos[s, 2],
             center[1] + rand() * wireplot_jitter - rand() * wireplot_jitter,
             center[2] + rand() * wireplot_jitter - rand() * wireplot_jitter,
@@ -105,9 +182,10 @@ function wireplot(g::AbstractGraph, basefn = "wireplot";
     #----------------------------------------
 
     for i in vertices(g)
+
         (pos_x, pos_y) = node_pos[i,:]
-        
-        set_source_rgb(cr, _get_color(degs[i], max_cons)[2]...)
+
+        set_source_rgb(cr, [0.0,0.0,0.0]...)
         # line 200
         circle(cr, pos_x, pos_y, wireplot_node_diameter)
         fill(cr)
@@ -123,12 +201,12 @@ function wireplot(g::AbstractGraph, basefn = "wireplot";
             label_border_left = pos_x - label_extents[3] / 2 - 1
             label_border_right = label_origin_x + label_extents[3]
             label_border_top = label_origin_y + label_extents[4]
-            label_border_bottom = label_origin_y            
+            label_border_bottom = label_origin_y
         elseif round(Int, pos_x) == center[1] && pos_y < center[2]
             label_origin_x = pos_x - label_extents[3] / 2 - 1
             label_origin_y = pos_y - wireplot_node_diameter / 2 - wireplot_node_label_offset
             label_border_left = pos_x - label_extents[3] / 2 - 1
-            label_border_right = label_origin_x[i] + label_extents[3]
+            label_border_right = label_origin_x + label_extents[3]
             label_border_top = label_origin_y + label_extents[4]
             label_border_bottom = label_origin_y
         elseif pos_x < center[1]
@@ -155,16 +233,15 @@ function wireplot(g::AbstractGraph, basefn = "wireplot";
         plot_border_left = min(plot_border_left, label_border_left)
     end
     ## PLOT LEGEND
-    #-------------
+    #-----------------------
 
     ## HEADING
 
-    heading = "Arc frequency"
-    heading_extents = text_extents(cr, heading)
+    heading_extents = text_extents(cr, wireplot_legend_heading)
 
     set_source_rgb(cr, wireplot_legend_font_color...)
     move_to(cr, plot_border_right - res_x * 0.25, plot_border_bottom)
-    show_text(cr, heading)
+    show_text(cr, wireplot_legend_heading)
     line_to(cr, plot_border_right, plot_border_bottom)
 
     stroke(cr)
@@ -175,16 +252,18 @@ function wireplot(g::AbstractGraph, basefn = "wireplot";
 
     gradient = pattern_create_linear(plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom,  plot_border_right,  plot_border_bottom)
 
-    pattern_add_color_stop_rgb(gradient, 0, _get_color(0, max_cons)[3]...)
-    pattern_add_color_stop_rgb(gradient, 1, _get_color(max_cons, max_cons)[4]...)
+    pattern_add_color_stop_rgb(gradient, 0, _get_color(0, actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[3]...)
+    pattern_add_color_stop_rgb(gradient, 1, _get_color(0, actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[4]...)
     set_source(cr, gradient)
+
     fill_preserve(cr)
     destroy(gradient)
 
     ## COLOR DESCRIPTOR FONT
+
     set_source_rgb(cr, wireplot_legend_font_color...)
     text_min = string("[", 1, ", ...")
-    text_max = string(max_cons, "]")
+    text_max = string(actual_max, "]")
 
     move_to(cr, plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom - res_y * 0.02)
     show_text(cr, text_min)
@@ -194,9 +273,10 @@ function wireplot(g::AbstractGraph, basefn = "wireplot";
 
     ## EXPORT SVG AND PNG
     #--------------------
+
     write_to_png(c, "$(basefn).png")
     finish(c)
-        
+
 end
 
 export wireplot
