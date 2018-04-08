@@ -36,7 +36,7 @@ function _get_width(value::Number,
         if ((actual_min / weight_range) ^ 2) * normrange < min_width
             adjustment = ((actual_max - value) / actual_min) * (min_width - ((actual_min / weight_range) ^ 2) * normrange)
         end
-        output_width = ((((value - actual_min) / weight_range) ^ 2) * normrange) + min_width
+        output_width = ((((value - actual_min) / weight_range) ^ 2) * normrange) + adjustment
     end
     return output_width
 end
