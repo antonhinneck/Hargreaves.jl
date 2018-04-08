@@ -34,6 +34,7 @@ function _get_width(value::Number,
         output_width = (value - actual_min) / (weight_range) * normrange
     elseif !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :quadratic
         # A proper quadratic function would be better.
+        # The value max_width is exceeded by min_width * (actual_min / value) ^ 8.
         output_width = ((value - actual_min) / weight_range) ^ 2 * normrange + min_width * (actual_min / value) ^ 8
     end
     return output_width
