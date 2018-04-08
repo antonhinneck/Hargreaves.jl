@@ -36,7 +36,8 @@ function _get_width(value::Number,
         if ((actual_min / weight_range) ^ 2) * normrange < min_width
             adjustment = ((actual_max - value) / actual_min) * (min_width - ((actual_min / weight_range) ^ 2) * normrange)
         end
-        output_width = ((((value - actual_min) / weight_range) ^ 2) * normrange) + adjustment
+        # does not work as intended
+        output_width = ((((value - actual_min) / weight_range) ^ 2) * normrange) + min_width
     end
     return output_width
 end
@@ -138,6 +139,7 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     wireplot_edge_color_scheme =:generic,
     wireplot_legend_font_color = [0.0,0.0,0.0],
     wireplot_legend_heading = "Edges' weights",
+    wireplot_legend_show_values = true,
     static_widths = false,
     static_colors = false,
     color_scale = :linear,
@@ -288,15 +290,17 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
 
     ## COLOR DESCRIPTOR FONT
 
-    set_source_rgb(cr, wireplot_legend_font_color...)
-    text_min = string("[", 1, ", ...")
-    text_max = string(actual_max, "]")
+    if wireplot_legend_show_values
+        set_source_rgb(cr, wireplot_legend_font_color...)
+        text_min = string("[", 1, ", ...")
+        text_max = string(actual_max, "]")
 
-    move_to(cr, plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom - res_y * 0.02)
-    show_text(cr, text_min)
+        move_to(cr, plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom - res_y * 0.02)
+        show_text(cr, text_min)
 
-    move_to(cr, plot_border_right - text_extents(cr, text_max)[3] - text_extents(cr, text_max)[1], plot_border_bottom - res_y * 0.02)
-    show_text(cr, text_max)
+        move_to(cr, plot_border_right - text_extents(cr, text_max)[3] - text_extents(cr, text_max)[1], plot_border_bottom - res_y * 0.02)
+        show_text(cr, text_max)
+    end
 
     ## EXPORT SVG AND PNG
     #--------------------
