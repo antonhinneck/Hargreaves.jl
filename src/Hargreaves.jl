@@ -23,13 +23,20 @@ function _get_width(value::Number,
                     min_width::Number,
                     max_width::Number,
                     static_width_value::Number,
+                    width_scale::Symbol,
                     static_widths::Bool)
 
     output_width = static_width_value
     normrange = max_width - min_width
     weight_range = actual_max - actual_min
-    if !static_widths && !(normrange == 0) && !(weight_range == 0)
+
+    if !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :linear
         output_width = (value - actual_min) / (weight_range) * normrange
+    elseif !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :quadratic
+        if ((actual_min / weight_range) ^ 2) * normrange < min_width
+            adjustment = ((actual_max - value) / actual_min) * (min_width - ((actual_min / weight_range) ^ 2) * normrange)
+        end
+        output_width = ((((value - actual_min) / weight_range) ^ 2) * normrange) + min_width
     end
     return output_width
 end
@@ -51,7 +58,11 @@ function _get_color(value::Number,
                     actual_min::Number,
                     actual_max::Number,
                     static_colors::Bool,
+                    color_scale,
                     scheme::Symbol = :generic)
+
+    # This function only supports decreasing color values
+    # while weights increase: IF-clause needed!
 
     (r_min, r_max) = (200, 112)
     (g_min, g_max) = (255, 30)
@@ -69,10 +80,38 @@ function _get_color(value::Number,
         (g_min, g_max) = (246, 0)
         (b_min, b_max) = (242, 106)
     end
+
     weight_range = actual_max - actual_min
-    r_out = (r_min - ((r_min - r_max) / weight_range) * value) / 255
-    g_out = (g_min - ((g_min - g_max) / weight_range) * value) / 255
-    b_out = (b_min - ((b_min - b_max) / weight_range) * value) / 255
+
+    @inline function output_color(color_min, color_max)
+
+        output = color_min / 255
+        color_range = abs(color_max - color_min)
+
+        if color_scale == :linear
+            output = color_min
+            if color_max < color_min
+                output = (color_min - ((color_range) / weight_range) * value) / 255
+            elseif color_max > color_min
+                output = (color_max - ((color_range) / weight_range) * value) / 255
+            end
+        elseif color_scale == :quadratic
+            output = color_min
+            if color_max < color_min
+                output = ((color_range / weight_range) * value) / 255
+                output = color_min / 255 - output ^ 2
+            elseif color_max > color_min
+                output = (((color_range / weight_range) * value) ^ 2) / 255
+            end
+        end
+
+        return output
+    end # inline function
+
+    r_out = output_color(r_min, r_max)
+    g_out = output_color(g_min, g_max)
+    b_out = output_color(b_min, b_max)
+
     if static_colors
     # Override min color used in legend's gradient
         r_min = r_max
@@ -88,7 +127,7 @@ function _get_color(value::Number,
 end
 
 function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
-    distmx=weights(g),
+    distmx = weights(g),
     res_x = 4096, res_y = 4096,
     plot_to_surface_ratio = 0.9,
     wireplot_bg_color = [1.0,1.0,1.0],
@@ -101,8 +140,10 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     wireplot_legend_heading = "Edges' weights",
     static_widths = false,
     static_colors = false,
-    min_width=1,  # minimum normalized arc width
-    max_width=8, # maximum normalized arc width
+    color_scale = :linear,
+    width_scale = :linear,
+    min_width = 1,  # minimum normalized arc width
+    max_width = 8, # maximum normalized arc width
     static_width_value = 1 # static arc width (if static_widths)
     )
 
@@ -143,9 +184,9 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
         # deg_d = indeg_d + outdeg_d
 
         if distmx == weights(g) || static_colors
-            set_source_rgb(cr, _get_color(actual_max, actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[1]...)
+            set_source_rgb(cr, _get_color(actual_max, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
         else
-            set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[1]...)
+            set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
         end
 
         set_line_width(cr, _get_width(_get_weight(distmx, e),
@@ -154,6 +195,7 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
                                       min_width,
                                       max_width,
                                       static_width_value,
+                                      width_scale,
                                       static_widths))
 
         curve_to(cr, node_pos[s, 1], node_pos[s, 2],
@@ -237,8 +279,8 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
 
     gradient = pattern_create_linear(plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom,  plot_border_right,  plot_border_bottom)
 
-    pattern_add_color_stop_rgb(gradient, 0, _get_color(0, actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[3]...)
-    pattern_add_color_stop_rgb(gradient, 1, _get_color(0, actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[4]...)
+    pattern_add_color_stop_rgb(gradient, 0, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[3]...)
+    pattern_add_color_stop_rgb(gradient, 1, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[4]...)
     set_source(cr, gradient)
 
     fill_preserve(cr)
