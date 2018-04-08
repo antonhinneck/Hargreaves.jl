@@ -3,7 +3,7 @@ module Hargreaves
 
 using Cairo, Colors, LightGraphs
 
-function _get_weight(weight_matrix::Array{T,2} where T <: Number, e)
+function _get_weight(weight_matrix::Array{T,2} where T <: Number, e::AbstractEdge{T} where T <: Integer)
 #This function only supports upper triangular matrices.
 #(only unidirected graphs)
 
