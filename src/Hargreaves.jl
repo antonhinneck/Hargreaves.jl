@@ -9,35 +9,29 @@ function _get_weight(weight_matrix::Array{T,2} where T <: Number, e)
 
     weigth_matrix = UpperTriangular(weight_matrix)
     weight = 0
-
     if src(e) < dst(e) && src(e) != dst(e)
-
         weight = weight_matrix[src(e), dst(e)]
-
     elseif dst(e) < src(e) && src(e) != dst(e)
-
         weight = weight_matrix[dst(e), src(e)]
-
     end
-
     return weight
-
 end
 
-function _get_width(value::Number, actual_min::Number, actual_max::Number, min_width::Number, max_width::Number, static_width_value::Number, static_widths::Bool)
+function _get_width(value::Number,
+                    actual_min::Number,
+                    actual_max::Number,
+                    min_width::Number,
+                    max_width::Number,
+                    static_width_value::Number,
+                    static_widths::Bool)
 
     output_width = static_width_value
     normrange = max_width - min_width
     weight_range = actual_max - actual_min
-
     if !static_widths && !(normrange == 0) && !(weight_range == 0)
-
         output_width = (value - actual_min) / (weight_range) * normrange
-
     end
-
     return output_width
-
 end
 
 function _compute_node_positions(res_x, res_y, node_count, ratio=0.8, switch=1)
@@ -53,54 +47,44 @@ function _compute_node_positions(res_x, res_y, node_count, ratio=0.8, switch=1)
     return positions
 end
 
-function _get_color(value::Number, actual_min::Number, actual_max::Number, static_colors::Bool, scheme::Symbol = :blossom)
+function _get_color(value::Number,
+                    actual_min::Number,
+                    actual_max::Number,
+                    static_colors::Bool,
+                    scheme::Symbol = :generic)
 
     (r_min, r_max) = (200, 112)
     (g_min, g_max) = (255, 30)
     (b_min, b_max) = (225, 112)
-
     if scheme == :sky
-
         (r_min, r_max) = (254, 8)
         (g_min, g_max) = (255, 29)
         (b_min, b_max) = (217, 88)
-
     elseif scheme == :blue
-
         (r_min, r_max) = (230, 0)
         (g_min, g_max) = (238, 51)
         (b_min, b_max) = (255, 153)
-
     elseif scheme == :purple
-
         (r_min, r_max) = (255, 75)
         (g_min, g_max) = (246, 0)
         (b_min, b_max) = (242, 106)
-
     end
-
     weight_range = actual_max - actual_min
-
     r_out = (r_min - ((r_min - r_max) / weight_range) * value) / 255
     g_out = (g_min - ((g_min - g_max) / weight_range) * value) / 255
     b_out = (b_min - ((b_min - b_max) / weight_range) * value) / 255
-
     if static_colors
     # Override min color used in legend's gradient
-
         r_min = r_max
         g_min = g_max
         b_min = b_max
-
     end
-
     return [
         [r_out,g_out,b_out],
         [0.0,0.0,0.0],
         [r_min / 255,g_min / 255,b_min / 255],
         [r_max / 255,g_max / 255,b_max / 255]
     ]
-
 end
 
 function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
@@ -159,16 +143,18 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
         # deg_d = indeg_d + outdeg_d
 
         if distmx == weights(g) || static_colors
-
             set_source_rgb(cr, _get_color(actual_max, actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[1]...)
-
         else
-
             set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_min, actual_max, static_colors, wireplot_edge_color_scheme)[1]...)
-
         end
 
-        set_line_width(cr, _get_width(_get_weight(distmx, e), actual_min, actual_max, min_width, max_width, static_width_value, static_widths))
+        set_line_width(cr, _get_width(_get_weight(distmx, e),
+                                      actual_min,
+                                      actual_max,
+                                      min_width,
+                                      max_width,
+                                      static_width_value,
+                                      static_widths))
 
         curve_to(cr, node_pos[s, 1], node_pos[s, 2],
             center[1] + rand() * wireplot_jitter - rand() * wireplot_jitter,
@@ -184,7 +170,6 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     for i in vertices(g)
 
         (pos_x, pos_y) = node_pos[i,:]
-
         set_source_rgb(cr, [0.0,0.0,0.0]...)
         # line 200
         circle(cr, pos_x, pos_y, wireplot_node_diameter)
