@@ -33,11 +33,8 @@ function _get_width(value::Number,
     if !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :linear
         output_width = (value - actual_min) / (weight_range) * normrange
     elseif !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :quadratic
-        if ((actual_min / weight_range) ^ 2) * normrange < min_width
-            adjustment = ((actual_max - value) / actual_min) * (min_width - ((actual_min / weight_range) ^ 2) * normrange)
-        end
-        # does not work as intended
-        output_width = ((((value - actual_min) / weight_range) ^ 2) * normrange) + min_width
+        # A proper quadratic function would be better.
+        output_width = ((value - actual_min) / weight_range) ^ 2 * normrange + min_width * (actual_min / value) ^ 8
     end
     return output_width
 end
