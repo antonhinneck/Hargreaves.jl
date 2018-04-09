@@ -240,13 +240,10 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     for i in vertices(g)
 
         (pos_x, pos_y) = node_pos[i,:]
-        move_to(cr, pos_x, pos_y)
-        #if check
         set_source_rgb(cr, [0.0,0.0,0.0]...)
-        # line 200
+        move_to(cr, pos_x, pos_y) # Prevents artifacts in the exported pdf file
         circle(cr, pos_x, pos_y, wireplot_node_diameter)
         fill(cr)
-        #end
         text = string(i)
         label_extents = text_extents(cr, text)
 
