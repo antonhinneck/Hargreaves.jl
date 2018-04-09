@@ -30,14 +30,18 @@ function _get_width(value::Number,
     normrange = max_width - min_width
     weight_range = actual_max - actual_min
 
-    if !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :linear
-        output_width = (value - actual_min) / (weight_range) * normrange
-    elseif !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :quadratic
-        # A proper quadratic function would be better.
-        # The value max_width is exceeded by min_width * (actual_min / value) ^ 8.
-        output_width = ((value - actual_min) / weight_range) ^ 2 * normrange + min_width * (actual_min / value) ^ 8
+    if value == 0
+        output_width = 0
+    else
+        if !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :linear
+            output_width = (value - actual_min) / (weight_range) * normrange
+        elseif !static_widths && !(normrange == 0) && !(weight_range == 0) && width_scale == :quadratic
+            # A proper quadratic function would be better.
+            # The value max_width is exceeded by min_width * (actual_min / value) ^ 8.
+            output_width = ((value - actual_min) / weight_range) ^ 2 * normrange + min_width * (actual_min / value) ^ 8
+        end
+        return output_width
     end
-    return output_width
 end
 
 function _compute_node_positions(res_x, res_y, node_count, ratio=0.8, switch=1)
@@ -148,6 +152,22 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     )
 
     (actual_min, actual_max) = extrema(distmx) #Get minimal and maximal weights
+
+    @inline function _drop_zeros(array::Array{T1, 2} where T1 <: Number, max::T2 where T2 <: Number)
+        # Drop weights if weight <= 0.
+        output_min = max
+        for a in array
+            if a > 0 && a < output_min
+
+                output_min = a
+
+            end
+        end
+        return output_min
+    end
+
+    actual_min = _drop_zeros(distmx, actual_max)
+    #println(actual_min)
 
     ## SETUP SURFACE
     #-----------------------
