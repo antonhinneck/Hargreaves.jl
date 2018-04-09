@@ -76,8 +76,8 @@ function _get_color(value::Number,
         (b_min, b_max) = (217, 88)
     elseif scheme == :blue
         (r_min, r_max) = (230, 0)
-        (g_min, g_max) = (238, 51)
-        (b_min, b_max) = (255, 153)
+        (g_min, g_max) = (238, 55)
+        (b_min, b_max) = (255, 160)
     elseif scheme == :purple
         (r_min, r_max) = (255, 75)
         (g_min, g_max) = (246, 0)
@@ -148,7 +148,8 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     width_scale = :linear,
     min_width = 1,  # minimum normalized arc width
     max_width = 8, # maximum normalized arc width
-    static_width_value = 1 # static arc width (if static_widths)
+    static_width_value = 1, # static arc width (if static_widths)
+    export_type = :svg
     )
 
     (actual_min, actual_max) = extrema(distmx) #Get minimal and maximal weights
@@ -174,7 +175,11 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
 
     center = [res_x / 2,res_y / 2]
 
-    c = CairoSVGSurface("$(basefn).svg", res_x, res_y)
+    if export_type == :pdf
+        c = CairoPDFSurface("$(basefn).pdf", res_x, res_y)
+    else
+        c = CairoSVGSurface("$(basefn).svg", res_x, res_y)
+    end
     cr = CairoContext(c)
     select_font_face(cr, "Times", 1, 1)
     set_font_size(cr, 56.0)
@@ -208,35 +213,40 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
         else
             set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
         end
-
-        set_line_width(cr, _get_width(_get_weight(distmx, e),
+        line_width = _get_width(_get_weight(distmx, e),
                                       actual_min,
                                       actual_max,
                                       min_width,
                                       max_width,
                                       static_width_value,
                                       width_scale,
-                                      static_widths))
-
-        curve_to(cr, node_pos[s, 1], node_pos[s, 2],
-            center[1] + rand() * wireplot_jitter - rand() * wireplot_jitter,
-            center[2] + rand() * wireplot_jitter - rand() * wireplot_jitter,
-            node_pos[d, 1], node_pos[d, 2])
-        stroke(cr)
+                                      static_widths)
+        set_line_width(cr, line_width)
+        if line_width > 0
+            curve_to(cr, node_pos[s, 1], node_pos[s, 2],
+                center[1] + rand() * wireplot_jitter - rand() * wireplot_jitter,
+                center[2] + rand() * wireplot_jitter - rand() * wireplot_jitter,
+                node_pos[d, 1], node_pos[d, 2])
+            stroke(cr)
+        end
     end
     set_line_width(cr, 1)
 
     ## PLOT NODES BASED ON COMPUTED POSITIONS
     #----------------------------------------
 
+    check = false
+
     for i in vertices(g)
 
         (pos_x, pos_y) = node_pos[i,:]
+        move_to(cr, pos_x, pos_y)
+        #if check
         set_source_rgb(cr, [0.0,0.0,0.0]...)
         # line 200
         circle(cr, pos_x, pos_y, wireplot_node_diameter)
         fill(cr)
-
+        #end
         text = string(i)
         label_extents = text_extents(cr, text)
 
@@ -323,9 +333,11 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     ## EXPORT SVG AND PNG
     #--------------------
 
-    write_to_png(c, "$(basefn).png")
-    finish(c)
-
+    if export_type == :png
+        write_to_png(c, "$(basefn).png")
+    else
+        finish(c)
+    end
 end
 
 export wireplot
