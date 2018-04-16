@@ -138,6 +138,7 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     wireplot_node_diameter = 8.0,
     wireplot_node_label_offset = 16.0,
     wireplot_node_label_font_color = [0.0,0.0,0.0],
+    wireplot_node_label_font_size = 48.0,
     wireplot_edge_color_scheme =:generic,
     wireplot_legend_font_color = [0.0,0.0,0.0],
     wireplot_legend_heading = "Edges' weights",
@@ -182,7 +183,7 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     end
     cr = CairoContext(c)
     select_font_face(cr, "Times", 1, 1)
-    set_font_size(cr, 56.0)
+    set_font_size(cr, wireplot_node_label_font_size)
 
     ## DRAW BACKGROUND
     #-----------------------
