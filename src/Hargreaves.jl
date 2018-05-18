@@ -319,7 +319,7 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     if wireplot_legend_show_values
         set_source_rgb(cr, wireplot_legend_font_color...)
         text_min = string("[", 1, ", ...")
-        text_max = string(actual_max, "]")
+        text_max = string(round(Int, actual_max), "]")
 
         move_to(cr, plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom - res_y * 0.02)
         show_text(cr, text_min)
