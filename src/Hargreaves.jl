@@ -153,16 +153,16 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     export_type = :svg
     )
 
-    (actual_min, actual_max) = extrema(distmx) #Get minimal and maximal weights
-
-    @inline function _drop_zeros(array::Array{T1, 2} where T1 <: Number, max::T2 where T2 <: Number)
-        # Drop weights if weight <= 0.
-        output_min = max
-        for a in array
-            if a > 0 && a < output_min
-
-                output_min = a
-
+    (actual_minwidth, actual_maxwidth) = extrema(distmx)
+    actual_widthrange = actual_maxwidth - actual_minwidth
+    @inline function _norm_width(w)
+        if actual_widthrange == 0
+            return 1
+        else
+            w_pct = (w - actual_minwidth) / actual_widthrange
+            normrange = max_width - min_width
+            if w_pct <= 0 || normrange <= 0
+                return 1
             end
         end
         return output_min
