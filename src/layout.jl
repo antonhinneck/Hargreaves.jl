@@ -37,11 +37,8 @@ type layout
 
         #Define components
         plot_pane_def = [canvas_dimensions[1] * label_area_share, canvas_dimensions[2] * label_area_share, canvas_dimensions[1] - canvas_dimensions[1] * 2 * label_area_share, canvas_dimensions[2] * plot_pane_y_share]
-
         legend_def = [canvas_dimensions[1] * label_area_share, plot_pane_def[4] + 2 *  label_area_share * canvas_dimensions[2], canvas_dimensions[1] - canvas_dimensions[1] * 2 * label_area_share, canvas_dimensions[2] - (plot_pane_def[4] + 2 * label_area_share * canvas_dimensions[2])]
-
         label_area_dimensions = [plot_pane_def[1], plot_pane_def[2]]
-
         new(canvas_dimensions, plot_pane_def, legend_def, label_area_dimensions, show_legend, show_labels)
     end
 end
