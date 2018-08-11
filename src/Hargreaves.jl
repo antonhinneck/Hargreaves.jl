@@ -431,9 +431,9 @@ function gridplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     heading_extents = text_extents(cr, wireplot_legend_heading)
 
     set_source_rgb(cr, wireplot_legend_font_color...)
-    move_to(cr, plot_layout.legend_def[1], plot_layout.legend_def[2] + heading_extents[4])
+    move_to(cr, plot_layout.legend_def[1], plot_layout.legend_def[2] + plot_layout.legend_def[4])
     show_text(cr, wireplot_legend_heading)
-    line_to(cr, plot_layout.legend_def[1] + plot_layout.legend_def[3] - current_width, plot_layout.legend_def[2] + heading_extents[4])
+    line_to(cr, plot_layout.legend_def[1] + plot_layout.legend_def[3] - current_width, plot_layout.legend_def[2] + plot_layout.legend_def[4])
 
     stroke(cr)
 
@@ -441,7 +441,7 @@ function gridplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
 
     descriptor_origin_x = 2 * plot_layout.legend_def[1] + heading_extents[3]
 
-    rectangle(cr, descriptor_origin_x,  plot_layout.legend_def[2] + heading_extents[4] * 0.1, plot_layout.legend_def[1] + plot_layout.legend_def[3] - descriptor_origin_x - current_width, heading_extents[4] * 0.8)
+    rectangle(cr, descriptor_origin_x,  plot_layout.legend_def[2] + plot_layout.legend_def[4] - heading_extents[4] * 0.9, plot_layout.legend_def[1] + plot_layout.legend_def[3] - descriptor_origin_x - current_width, heading_extents[4] * 0.8)
 
     gradient = pattern_create_linear(descriptor_origin_x, 0, plot_layout.legend_def[1] + plot_layout.legend_def[3], 0)
 
@@ -452,21 +452,23 @@ function gridplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     fill_preserve(cr)
     #fill(cr)
     destroy(gradient)
-    #=
+
     ## COLOR DESCRIPTOR FONT
 
     if wireplot_legend_show_values
         set_source_rgb(cr, wireplot_legend_font_color...)
         text_min = string("[", 1, ", ...")
         text_max = string(round(Int, actual_max), "]")
+        text_min_extents = text_extents(cr, text_min)
+        text_max_extents = text_extents(cr, text_max)
 
-        move_to(cr, plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom - res_y * 0.02)
+        move_to(cr, descriptor_origin_x - text_min_extents[1], plot_layout.legend_def[2] + plot_layout.legend_def[4] - heading_extents[4] - text_max_extents[4] / 4)
         show_text(cr, text_min)
 
-        move_to(cr, plot_border_right - text_extents(cr, text_max)[3] - text_extents(cr, text_max)[1], plot_border_bottom - res_y * 0.02)
+        move_to(cr, plot_layout.legend_def[1] + plot_layout.legend_def[3] - current_width - text_max_extents[3], plot_layout.legend_def[2] + plot_layout.legend_def[4] - heading_extents[4] - text_max_extents[4] / 4)
         show_text(cr, text_max)
     end
-    =#
+
     ## EXPORT SVG AND PNG
     #--------------------
 
