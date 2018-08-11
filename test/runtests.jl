@@ -35,4 +35,7 @@ weights[2,15] = 30
 g = CompleteGraph(node_count)
 
 wireplot(g, "wireplot_1", distmx = weights, wireplot_edge_color_scheme = :purple, static_widths = true, static_colors = true)
+
 wireplot(g, "wireplot_2", distmx = weights, wireplot_edge_color_scheme = :purple, color_scale = :quadratic, width_scale = :quadratic, max_width = 8)
+
+gridplot(g, "gridplot_1", distmx = weights, wireplot_edge_color_scheme = :purple, static_widths = true, static_colors = true, res_x = 1200, res_y = 800)
