@@ -38,4 +38,4 @@ wireplot(g, "wireplot_1", distmx = weights, wireplot_edge_color_scheme = :purple
 
 wireplot(g, "wireplot_2", distmx = weights, wireplot_edge_color_scheme = :purple, color_scale = :quadratic, width_scale = :quadratic, max_width = 8)
 
-gridplot(g, "gridplot_1", distmx = weights, wireplot_edge_color_scheme = :purple, static_widths = true, static_colors = true, res_x = 1200, res_y = 800)
+gridplot(g, "gridplot_1", distmx = weights, wireplot_edge_color_scheme = :purple, static_widths = true, res_x = 1200, res_y = 800)

@@ -414,9 +414,11 @@ function gridplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
             current_x = plot_layout.plot_pane_def[1] + plot_layout.plot_pane_def[3] / length(distmx[:, 1]) * (i - 1)
             current_y = plot_layout.plot_pane_def[2] + plot_layout.plot_pane_def[4] / length(distmx[1, :]) * (j - 1)
 
-            rectangle(cr, current_x, current_y, current_width, current_height)
-            set_source_rgb(cr, _get_color(distmx[i, j], actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
-            fill(cr)
+            if !(i >= j)
+                rectangle(cr, current_x, current_y, current_width, current_height)
+                set_source_rgb(cr, _get_color(distmx[i, j], actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
+                fill(cr)
+            end
 
         end
     end
@@ -431,23 +433,26 @@ function gridplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     set_source_rgb(cr, wireplot_legend_font_color...)
     move_to(cr, plot_layout.legend_def[1], plot_layout.legend_def[2] + heading_extents[4])
     show_text(cr, wireplot_legend_heading)
-    line_to(cr, plot_layout.legend_def[1] + plot_layout.legend_def[3], plot_layout.legend_def[2] + heading_extents[4])
+    line_to(cr, plot_layout.legend_def[1] + plot_layout.legend_def[3] - current_width, plot_layout.legend_def[2] + heading_extents[4])
 
     stroke(cr)
-    #=
+
     ## COLOR DESCRIPTOR
 
-    rectangle(cr, plot_border_right - res_x * 0.23 + heading_extents[3],  plot_border_bottom - res_y * 0.015,  res_x * 0.23 - heading_extents[3], res_y * 0.01)
+    descriptor_origin_x = 2 * plot_layout.legend_def[1] + heading_extents[3]
 
-    gradient = pattern_create_linear(plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom,  plot_border_right,  plot_border_bottom)
+    rectangle(cr, descriptor_origin_x,  plot_layout.legend_def[2] + heading_extents[4] * 0.1, plot_layout.legend_def[1] + plot_layout.legend_def[3] - descriptor_origin_x - current_width, heading_extents[4] * 0.8)
+
+    gradient = pattern_create_linear(descriptor_origin_x, 0, plot_layout.legend_def[1] + plot_layout.legend_def[3], 0)
 
     pattern_add_color_stop_rgb(gradient, 0, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[3]...)
     pattern_add_color_stop_rgb(gradient, 1, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[4]...)
     set_source(cr, gradient)
 
     fill_preserve(cr)
+    #fill(cr)
     destroy(gradient)
-
+    #=
     ## COLOR DESCRIPTOR FONT
 
     if wireplot_legend_show_values
