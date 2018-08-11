@@ -1,5 +1,6 @@
 __precompile__(true)
 module Hargreaves
+export wireplot, gridplot
 
 using Cairo, Colors, LightGraphs
 
@@ -338,6 +339,222 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     end
 end
 
-export wireplot
+function gridplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
+    distmx = weights(g),
+    res_x = 4096, res_y = 4096,
+    plot_to_surface_ratio = 0.9,
+    wireplot_bg_color = [1.0,1.0,1.0],
+    wireplot_jitter = 0,
+    wireplot_node_diameter = 8.0,
+    wireplot_node_label_offset = 16.0,
+    wireplot_node_label_font_color = [0.0,0.0,0.0],
+    wireplot_node_label_font_size = 48.0,
+    wireplot_edge_color_scheme =:generic,
+    wireplot_legend_font_color = [0.0,0.0,0.0],
+    wireplot_legend_heading = "Edges' weights",
+    wireplot_legend_show_values = true,
+    static_widths = false,
+    static_colors = false,
+    color_scale = :linear,
+    width_scale = :linear,
+    min_width = 1,  # minimum normalized arc width
+    max_width = 8, # maximum normalized arc width
+    static_width_value = 1, # static arc width (if static_widths)
+    export_type = :svg
+    )
+
+    (actual_min, actual_max) = extrema(distmx) #Get minimal and maximal weights
+
+    @inline function _init_layout()
+
+        _active_layout = new layout
+
+
+
+
+    end
+
+    @inline function _drop_zeros(array::Array{T1, 2} where T1 <: Number, max::T2 where T2 <: Number)
+        # Drop weights if weight <= 0.
+        output_min = max
+        for a in array
+            if a > 0 && a < output_min
+
+                output_min = a
+
+            end
+        end
+        return output_min
+    end
+
+    actual_min = _drop_zeros(distmx, actual_max)
+    #println(actual_min)
+
+    ## SETUP SURFACE
+    #-----------------------
+
+    center = [res_x / 2,res_y / 2]
+
+    if export_type == :pdf
+        c = CairoPDFSurface("$(basefn).pdf", res_x, res_y)
+    else
+        c = CairoSVGSurface("$(basefn).svg", res_x, res_y)
+    end
+    cr = CairoContext(c)
+    select_font_face(cr, "Times", 1, 1)
+    set_font_size(cr, wireplot_node_label_font_size)
+
+    ## DRAW BACKGROUND
+    #-----------------------
+
+    set_source_rgb(cr, wireplot_bg_color...)
+    rectangle(cr, 0.0, 0.0, res_x, res_y)
+    fill(cr)
+
+    ## PLOT EDGES
+    #-----------------------
+
+    plot_border_top = res_y
+    plot_border_bottom = 0
+    plot_border_left = res_x
+    plot_border_right = 0
+
+    node_pos = _compute_node_positions(res_x, res_y, nv(g), plot_to_surface_ratio, 1)
+
+    degs = degree(g)
+
+    for (i, e) in enumerate(edges(g))
+        (s, d) = (src(e), dst(e))
+        # indeg_d = indegs[d]
+        # deg_d = indeg_d + outdeg_d
+
+        if distmx == weights(g) || static_colors
+            set_source_rgb(cr, _get_color(actual_max, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
+        else
+            set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
+        end
+        line_width = _get_width(_get_weight(distmx, e),
+                                      actual_min,
+                                      actual_max,
+                                      min_width,
+                                      max_width,
+                                      static_width_value,
+                                      width_scale,
+                                      static_widths)
+        set_line_width(cr, line_width)
+        if line_width > 0
+            curve_to(cr, node_pos[s, 1], node_pos[s, 2],
+                center[1] + rand() * wireplot_jitter - rand() * wireplot_jitter,
+                center[2] + rand() * wireplot_jitter - rand() * wireplot_jitter,
+                node_pos[d, 1], node_pos[d, 2])
+            stroke(cr)
+        end
+    end
+    set_line_width(cr, 1)
+
+    ## PLOT NODES BASED ON COMPUTED POSITIONS
+    #----------------------------------------
+
+    check = false
+
+    for i in vertices(g)
+
+        (pos_x, pos_y) = node_pos[i,:]
+        set_source_rgb(cr, [0.0,0.0,0.0]...)
+        move_to(cr, pos_x, pos_y) # Prevents artifacts in the exported pdf file
+        circle(cr, pos_x, pos_y, wireplot_node_diameter)
+        fill(cr)
+        text = string(i)
+        label_extents = text_extents(cr, text)
+
+        set_source_rgb(cr, wireplot_node_label_font_color...)
+
+        if round(Int, pos_x) == center[1] && pos_y > center[2]
+            label_origin_x = pos_x - label_extents[3] / 2 - 1
+            label_origin_y = pos_y + wireplot_node_diameter / 2 + label_extents[4] + wireplot_node_label_offset
+            label_border_left = pos_x - label_extents[3] / 2 - 1
+            label_border_right = label_origin_x + label_extents[3]
+            label_border_top = label_origin_y + label_extents[4]
+            label_border_bottom = label_origin_y
+        elseif round(Int, pos_x) == center[1] && pos_y < center[2]
+            label_origin_x = pos_x - label_extents[3] / 2 - 1
+            label_origin_y = pos_y - wireplot_node_diameter / 2 - wireplot_node_label_offset
+            label_border_left = pos_x - label_extents[3] / 2 - 1
+            label_border_right = label_origin_x + label_extents[3]
+            label_border_top = label_origin_y + label_extents[4]
+            label_border_bottom = label_origin_y
+        elseif pos_x < center[1]
+            label_origin_x = pos_x - wireplot_node_diameter / 2 - label_extents[3] - wireplot_node_label_offset
+            label_origin_y = pos_y + label_extents[4] / 2 + sin(((i - 1) * 2 * pi) / nv(g)) * (wireplot_node_label_offset + wireplot_node_diameter / 2 + label_extents[4] / 2)
+            label_border_left = label_origin_x
+            label_border_right = label_origin_x + label_extents[3]
+            label_border_top = label_origin_y + label_extents[4]
+            label_border_bottom = label_origin_y
+        elseif pos_x > center[1]
+            label_origin_x = pos_x + wireplot_node_diameter / 2 + wireplot_node_diameter / 2 + wireplot_node_label_offset
+            label_origin_y = pos_y + label_extents[4] / 2 + sin(((i - 1) * 2 * pi) / nv(g)) * (wireplot_node_label_offset + wireplot_node_diameter / 2 + label_extents[4] / 2)
+            label_border_left = label_origin_x
+            label_border_right = label_origin_x + label_extents[3]
+            label_border_top = label_origin_y + label_extents[4]
+            label_border_bottom = label_origin_y
+        end
+
+        move_to(cr, label_origin_x, label_origin_y)
+        show_text(cr, text)
+        plot_border_bottom = max(plot_border_bottom, label_border_bottom)
+        plot_border_right = max(plot_border_right, label_border_right)
+        plot_border_top = min(plot_border_top, label_border_top)
+        plot_border_left = min(plot_border_left, label_border_left)
+    end
+    ## PLOT LEGEND
+    #-----------------------
+
+    ## HEADING
+
+    heading_extents = text_extents(cr, wireplot_legend_heading)
+
+    set_source_rgb(cr, wireplot_legend_font_color...)
+    move_to(cr, plot_border_right - res_x * 0.25, plot_border_bottom)
+    show_text(cr, wireplot_legend_heading)
+    line_to(cr, plot_border_right, plot_border_bottom)
+
+    stroke(cr)
+
+    ## COLOR DESCRIPTOR
+
+    rectangle(cr, plot_border_right - res_x * 0.23 + heading_extents[3],  plot_border_bottom - res_y * 0.015,  res_x * 0.23 - heading_extents[3], res_y * 0.01)
+
+    gradient = pattern_create_linear(plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom,  plot_border_right,  plot_border_bottom)
+
+    pattern_add_color_stop_rgb(gradient, 0, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[3]...)
+    pattern_add_color_stop_rgb(gradient, 1, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[4]...)
+    set_source(cr, gradient)
+
+    fill_preserve(cr)
+    destroy(gradient)
+
+    ## COLOR DESCRIPTOR FONT
+
+    if wireplot_legend_show_values
+        set_source_rgb(cr, wireplot_legend_font_color...)
+        text_min = string("[", 1, ", ...")
+        text_max = string(round(Int, actual_max), "]")
+
+        move_to(cr, plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom - res_y * 0.02)
+        show_text(cr, text_min)
+
+        move_to(cr, plot_border_right - text_extents(cr, text_max)[3] - text_extents(cr, text_max)[1], plot_border_bottom - res_y * 0.02)
+        show_text(cr, text_max)
+    end
+
+    ## EXPORT SVG AND PNG
+    #--------------------
+
+    if export_type == :png
+        write_to_png(c, "$(basefn).png")
+    else
+        finish(c)
+    end
+end
 
 end # module
