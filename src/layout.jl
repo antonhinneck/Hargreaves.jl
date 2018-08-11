@@ -45,5 +45,3 @@ type layout
         new(canvas_dimensions, plot_pane_def, legend_def, label_area_dimensions, show_legend, show_labels)
     end
 end
-
-test = layout([600,600], show_labels = false, show_legend = true)
