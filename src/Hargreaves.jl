@@ -1,7 +1,7 @@
 __precompile__(true)
 module Hargreaves
 
-using Cairo, Colors, LightGraphs
+using Cairo, Colors, LightGraphs, LinearAlgebra
 
 function _get_weight(weight_matrix::Array{T,2} where T <: Number, e::AbstractEdge{T} where T <: Integer)
 #This function only supports upper triangular matrices.
@@ -49,7 +49,7 @@ function _compute_node_positions(res_x, res_y, node_count, ratio=0.8, switch=1)
     degrees = 2 * pi
     degree_sections = degrees / node_count
     main_radius = res_x / 2 * ratio
-    positions = Array{Float64}(node_count, 2)
+    positions = zeros(node_count, 2)
     for i in 1:node_count
         positions[i,1] = cos(degree_sections * (i - 1)) * main_radius + center[1]
         positions[i,2] = sin(degree_sections * (i - 1)) * main_radius + center[2]
@@ -129,7 +129,7 @@ function _get_color(value::Number,
     ]
 end
 
-function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
+function wireplot(g::AbstractGraph, basefn = "wireplot";
     distmx = weights(g),
     res_x = 4096, res_y = 4096,
     plot_to_surface_ratio = 0.9,
@@ -168,7 +168,7 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
         return output_min
     end
 
-    actual_min = _drop_zeros(distmx, actual_max)
+    actual_min = minimum(distmx)#_drop_zeros(distmx, actual_max)
     #println(actual_min)
 
     ## SETUP SURFACE
@@ -210,13 +210,13 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
         # deg_d = indeg_d + outdeg_d
 
         if distmx == weights(g) || static_colors
-            set_source_rgb(cr, _get_color(actual_max, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
+            set_source_rgb(cr, _get_color(actual_maxwidth, actual_minwidth, actual_maxwidth, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
         else
-            set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
+            set_source_rgb(cr, _get_color(_get_weight(distmx, e), actual_minwidth, actual_maxwidth, static_colors, color_scale, wireplot_edge_color_scheme)[1]...)
         end
         line_width = _get_width(_get_weight(distmx, e),
-                                      actual_min,
-                                      actual_max,
+                                      actual_minwidth,
+                                      actual_maxwidth,
                                       min_width,
                                       max_width,
                                       static_width_value,
@@ -307,8 +307,8 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
 
     gradient = pattern_create_linear(plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom,  plot_border_right,  plot_border_bottom)
 
-    pattern_add_color_stop_rgb(gradient, 0, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[3]...)
-    pattern_add_color_stop_rgb(gradient, 1, _get_color(0, actual_min, actual_max, static_colors, color_scale, wireplot_edge_color_scheme)[4]...)
+    pattern_add_color_stop_rgb(gradient, 0, _get_color(0, actual_minwidth, actual_maxwidth, static_colors, color_scale, wireplot_edge_color_scheme)[3]...)
+    pattern_add_color_stop_rgb(gradient, 1, _get_color(0, actual_minwidth, actual_maxwidth, static_colors, color_scale, wireplot_edge_color_scheme)[4]...)
     set_source(cr, gradient)
 
     fill_preserve(cr)
@@ -319,7 +319,7 @@ function wireplot(g::AbstractGraph{T=Int64}, basefn = "wireplot";
     if wireplot_legend_show_values
         set_source_rgb(cr, wireplot_legend_font_color...)
         text_min = string("[", 1, ", ...")
-        text_max = string(round(Int, actual_max), "]")
+        text_max = string(round(Int, actual_maxwidth), "]")
 
         move_to(cr, plot_border_right - res_x * 0.23 + heading_extents[3], plot_border_bottom - res_y * 0.02)
         show_text(cr, text_min)
